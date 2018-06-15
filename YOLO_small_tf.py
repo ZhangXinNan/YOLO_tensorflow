@@ -1,3 +1,4 @@
+#encoding=utf8
 import numpy as np
 import tensorflow as tf
 import cv2
@@ -158,10 +159,13 @@ class YOLO_TF:
 		scales = np.reshape(output[980:1078],(7,7,2))
 		boxes = np.reshape(output[1078:],(7,7,2,4))
 		offset = np.transpose(np.reshape(np.array([np.arange(7)]*14),(2,7,7)),(1,2,0))
-
+		# 预测出来的x,y是在网格中的位置，所以要加上格子左上角在整图中的位置才上在原图中的位置
+		# 例如第(m,n)个格子，其位置为 ( (m+x)/7, (n+y)/7)。其中m,n为（0，1，2，3，4，5，6）中的值
 		boxes[:,:,:,0] += offset
 		boxes[:,:,:,1] += np.transpose(offset,(1,0,2))
 		boxes[:,:,:,0:2] = boxes[:,:,:,0:2] / 7.0
+		# 预测出来的宽高要进行平方
+		# 预测出来的w,h是除以整图的宽高进行规一化的，所以要除以整图的宽高
 		boxes[:,:,:,2] = np.multiply(boxes[:,:,:,2],boxes[:,:,:,2])
 		boxes[:,:,:,3] = np.multiply(boxes[:,:,:,3],boxes[:,:,:,3])
 		
@@ -169,22 +173,27 @@ class YOLO_TF:
 		boxes[:,:,:,1] *= self.h_img
 		boxes[:,:,:,2] *= self.w_img
 		boxes[:,:,:,3] *= self.h_img
-
+		# 检测最后的置信度要用分类和物体的置信度的积
 		for i in range(2):
 			for j in range(20):
 				probs[:,:,i,j] = np.multiply(class_probs[:,:,j],scales[:,:,i])
 
 		filter_mat_probs = np.array(probs>=self.threshold,dtype='bool')
 		filter_mat_boxes = np.nonzero(filter_mat_probs)
+		print filter_mat_probs.shape # (7, 7, 2, 20)
+		print filter_mat_boxes # box的indices
 		boxes_filtered = boxes[filter_mat_boxes[0],filter_mat_boxes[1],filter_mat_boxes[2]]
 		probs_filtered = probs[filter_mat_probs]
 		classes_num_filtered = np.argmax(filter_mat_probs,axis=3)[filter_mat_boxes[0],filter_mat_boxes[1],filter_mat_boxes[2]] 
-
+		print boxes_filtered
+		print probs_filtered
+		print '根据分类置信度排序'
 		argsort = np.array(np.argsort(probs_filtered))[::-1]
 		boxes_filtered = boxes_filtered[argsort]
 		probs_filtered = probs_filtered[argsort]
 		classes_num_filtered = classes_num_filtered[argsort]
-		
+		print boxes_filtered
+		print probs_filtered
 		for i in range(len(boxes_filtered)):
 			if probs_filtered[i] == 0 : continue
 			for j in range(i+1,len(boxes_filtered)):

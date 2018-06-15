@@ -1,3 +1,4 @@
+#encoding=utf8
 import numpy as np
 import tensorflow as tf
 import cv2
@@ -12,7 +13,7 @@ class YOLO_TF:
 	filewrite_img = False
 	filewrite_txt = False
 	disp_console = True
-	weights_file = 'weights/YOLO_tiny.ckpt'
+	weights_file = 'weights/YOLO_small.ckpt'
 	alpha = 0.1
 	threshold = 0.2
 	iou_threshold = 0.5
@@ -41,27 +42,40 @@ class YOLO_TF:
 				else : self.disp_console = False
 				
 	def build_networks(self):
-		if self.disp_console : print "Building YOLO_tiny graph..."
+		if self.disp_console : print "Building YOLO_small graph..."
 		self.x = tf.placeholder('float32',[None,448,448,3])
-		self.conv_1 = self.conv_layer(1,self.x,16,3,1)
+		self.conv_1 = self.conv_layer(1,self.x,64,7,2)
 		self.pool_2 = self.pooling_layer(2,self.conv_1,2,2)
-		self.conv_3 = self.conv_layer(3,self.pool_2,32,3,1)
+		self.conv_3 = self.conv_layer(3,self.pool_2,192,3,1)
 		self.pool_4 = self.pooling_layer(4,self.conv_3,2,2)
-		self.conv_5 = self.conv_layer(5,self.pool_4,64,3,1)
-		self.pool_6 = self.pooling_layer(6,self.conv_5,2,2)
-		self.conv_7 = self.conv_layer(7,self.pool_6,128,3,1)
-		self.pool_8 = self.pooling_layer(8,self.conv_7,2,2)
-		self.conv_9 = self.conv_layer(9,self.pool_8,256,3,1)
-		self.pool_10 = self.pooling_layer(10,self.conv_9,2,2)
-		self.conv_11 = self.conv_layer(11,self.pool_10,512,3,1)
-		self.pool_12 = self.pooling_layer(12,self.conv_11,2,2)
-		self.conv_13 = self.conv_layer(13,self.pool_12,1024,3,1)
-		self.conv_14 = self.conv_layer(14,self.conv_13,1024,3,1)
-		self.conv_15 = self.conv_layer(15,self.conv_14,1024,3,1)
-		self.fc_16 = self.fc_layer(16,self.conv_15,256,flat=True,linear=False)
-		self.fc_17 = self.fc_layer(17,self.fc_16,4096,flat=False,linear=False)
-		#skip dropout_18
-		self.fc_19 = self.fc_layer(19,self.fc_17,1470,flat=False,linear=True)
+		self.conv_5 = self.conv_layer(5,self.pool_4,128,1,1)
+		self.conv_6 = self.conv_layer(6,self.conv_5,256,3,1)
+		self.conv_7 = self.conv_layer(7,self.conv_6,256,1,1)
+		self.conv_8 = self.conv_layer(8,self.conv_7,512,3,1)
+		self.pool_9 = self.pooling_layer(9,self.conv_8,2,2)
+		self.conv_10 = self.conv_layer(10,self.pool_9,256,1,1)
+		self.conv_11 = self.conv_layer(11,self.conv_10,512,3,1)
+		self.conv_12 = self.conv_layer(12,self.conv_11,256,1,1)
+		self.conv_13 = self.conv_layer(13,self.conv_12,512,3,1)
+		self.conv_14 = self.conv_layer(14,self.conv_13,256,1,1)
+		self.conv_15 = self.conv_layer(15,self.conv_14,512,3,1)
+		self.conv_16 = self.conv_layer(16,self.conv_15,256,1,1)
+		self.conv_17 = self.conv_layer(17,self.conv_16,512,3,1)
+		self.conv_18 = self.conv_layer(18,self.conv_17,512,1,1)
+		self.conv_19 = self.conv_layer(19,self.conv_18,1024,3,1)
+		self.pool_20 = self.pooling_layer(20,self.conv_19,2,2)
+		self.conv_21 = self.conv_layer(21,self.pool_20,512,1,1)
+		self.conv_22 = self.conv_layer(22,self.conv_21,1024,3,1)
+		self.conv_23 = self.conv_layer(23,self.conv_22,512,1,1)
+		self.conv_24 = self.conv_layer(24,self.conv_23,1024,3,1)
+		self.conv_25 = self.conv_layer(25,self.conv_24,1024,3,1)
+		self.conv_26 = self.conv_layer(26,self.conv_25,1024,3,2)
+		self.conv_27 = self.conv_layer(27,self.conv_26,1024,3,1)
+		self.conv_28 = self.conv_layer(28,self.conv_27,1024,3,1)
+		self.fc_29 = self.fc_layer(29,self.conv_28,512,flat=True,linear=False)
+		self.fc_30 = self.fc_layer(30,self.fc_29,4096,flat=False,linear=False)
+		#skip dropout_31
+		self.fc_32 = self.fc_layer(32,self.fc_30,1470,flat=False,linear=True)
 		self.sess = tf.Session()
 		self.sess.run(tf.initialize_all_variables())
 		self.saver = tf.train.Saver()
@@ -111,7 +125,7 @@ class YOLO_TF:
 		inputs = np.zeros((1,448,448,3),dtype='float32')
 		inputs[0] = (img_resized_np/255.0)*2.0-1.0
 		in_dict = {self.x: inputs}
-		net_output = self.sess.run(self.fc_19,feed_dict=in_dict)
+		net_output = self.sess.run(self.fc_32,feed_dict=in_dict)
 		self.result = self.interpret_output(net_output[0])
 		self.show_results(img,self.result)
 		strtime = str(time.time()-s)
@@ -134,7 +148,7 @@ class YOLO_TF:
 					inputs[0,y,x,c] = f[c*448*448+y*448+x]
 
 		in_dict = {self.x: inputs}
-		net_output = self.sess.run(self.fc_19,feed_dict=in_dict)
+		net_output = self.sess.run(self.fc_32,feed_dict=in_dict)
 		self.boxes, self.probs = self.interpret_output(net_output[0])
 		img = cv2.imread('person.jpg')
 		self.show_results(self.boxes,img)
@@ -145,12 +159,10 @@ class YOLO_TF:
 		scales = np.reshape(output[980:1078],(7,7,2))
 		boxes = np.reshape(output[1078:],(7,7,2,4))
 		offset = np.transpose(np.reshape(np.array([np.arange(7)]*14),(2,7,7)),(1,2,0))
-		offset_y = np.transpose(np.reshape(np.array([np.arange(7)]*14),(2,7,7)),(2,1,0))
-		print offset
-		print offset_y
+		# 预测出来的x,y是在网格中的位置，所以要加上格子左上角在整图中的位置才上在原图中的位置
+		# 例如第(m,n)个格子，其位置为 ( (m+x)/7, (n+y)/7)。其中m,n为（0，1，2，3，4，5，6）中的值
 		boxes[:,:,:,0] += offset
-		# boxes[:,:,:,1] += np.transpose(offset,(1,0,2))
-		boxes[:,:,:,1] += offset_y
+		boxes[:,:,:,1] += np.transpose(offset,(1,0,2))
 		boxes[:,:,:,0:2] = boxes[:,:,:,0:2] / 7.0
 		boxes[:,:,:,2] = np.multiply(boxes[:,:,:,2],boxes[:,:,:,2])
 		boxes[:,:,:,3] = np.multiply(boxes[:,:,:,3],boxes[:,:,:,3])
@@ -163,21 +175,23 @@ class YOLO_TF:
 		for i in range(2):
 			for j in range(20):
 				probs[:,:,i,j] = np.multiply(class_probs[:,:,j],scales[:,:,i])
-		# 过滤掉小于阈值的
+
 		filter_mat_probs = np.array(probs>=self.threshold,dtype='bool')
 		filter_mat_boxes = np.nonzero(filter_mat_probs)
-		print filter_mat_probs.shape, filter_mat_probs
-		print filter_mat_boxes
+		print filter_mat_probs.shape # (7, 7, 2, 20)
+		print filter_mat_boxes # box的indices
 		boxes_filtered = boxes[filter_mat_boxes[0],filter_mat_boxes[1],filter_mat_boxes[2]]
 		probs_filtered = probs[filter_mat_probs]
 		classes_num_filtered = np.argmax(filter_mat_probs,axis=3)[filter_mat_boxes[0],filter_mat_boxes[1],filter_mat_boxes[2]] 
 		print boxes_filtered
 		print probs_filtered
+		# 根据分类置信度排序
 		argsort = np.array(np.argsort(probs_filtered))[::-1]
 		boxes_filtered = boxes_filtered[argsort]
 		probs_filtered = probs_filtered[argsort]
 		classes_num_filtered = classes_num_filtered[argsort]
-		# 排序后，去除IOU大于阈值的部分
+		print boxes_filtered
+		print probs_filtered
 		for i in range(len(boxes_filtered)):
 			if probs_filtered[i] == 0 : continue
 			for j in range(i+1,len(boxes_filtered)):
@@ -215,7 +229,7 @@ class YOLO_TF:
 			if self.disp_console : print '    image file writed : ' + self.tofile_img
 			cv2.imwrite(self.tofile_img,img_cp)			
 		if self.imshow :
-			cv2.imshow('YOLO_tiny detection',img_cp)
+			cv2.imshow('YOLO_small detection',img_cp)
 			cv2.waitKey(1)
 		if self.filewrite_txt : 
 			if self.disp_console : print '    txt file writed : ' + self.tofile_txt
